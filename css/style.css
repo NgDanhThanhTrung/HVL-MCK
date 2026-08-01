@@ -83,6 +83,25 @@ input{ font-family:inherit; }
 }
 
 /* ============================================================
+   MÀN SƯƠNG TĨNH LẶNG — Interactive Fog
+   ============================================================ */
+
+/* Hoạ tiết Gothic ẩn (rune/sigil nhỏ) — gần như vô hình, chỉ lộ rõ hơn
+   khi con trỏ "rẽ" lớp sương phủ ngay bên trên nó. */
+.fog-hidden-layer{
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  overflow:hidden;
+}
+.fog-hidden-layer svg{ display:block; }
+
+/* Canvas sương — vẽ động bằng JS (js/fog.js), luôn phủ nhẹ lên nền,
+   tự "khép" lại sau vài giây khi con trỏ rời đi. */
+.fog-canvas{
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  width:100%; height:100%;
+}
+
+/* ============================================================
    HEADER
    ============================================================ */
 
@@ -387,42 +406,59 @@ mark{ background:transparent; color:var(--accent-bright); text-decoration:underl
 .now-playing__title{ font-family:var(--font-display); font-size:1.25rem; color:var(--text-bright); margin:6px 0 2px; }
 .now-playing__artist{ font-size:.85rem; color:var(--text-dim); margin:0; }
 
-.quality-select{ display:flex; align-items:center; justify-content:center; gap:10px; margin:0 0 18px; }
-.quality-select__label{ font-family:var(--font-ui); font-size:.68rem; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-dim); }
-.quality-select__options{ display:flex; gap:6px; border:1px solid var(--surface); border-radius:20px; padding:3px; background:var(--bg-raised); }
+/* ---- Quality select (Tự động / FLAC / MP3) ---- */
+.quality-select{
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  margin-bottom:14px; flex-wrap:wrap;
+}
+.quality-select__label{
+  font-family:var(--font-ui); font-size:.72rem; letter-spacing:1.5px; text-transform:uppercase;
+  color:var(--text-dim); flex-shrink:0;
+}
+.quality-select__options{
+  display:flex; gap:4px; background:rgba(74,83,90,.12);
+  border:1px solid var(--surface); border-radius:999px; padding:3px;
+}
 .quality-btn{
-  font-family:var(--font-ui); font-size:.72rem; font-weight:600; letter-spacing:.5px;
-  padding:5px 12px; border-radius:16px; border:none; background:transparent; color:var(--text-dim);
-  cursor:pointer; transition:background .2s var(--ease), color .2s var(--ease);
+  background:transparent; border:none; color:var(--text-dim);
+  font-family:var(--font-ui); font-size:.76rem; font-weight:600; letter-spacing:.4px;
+  padding:6px 14px; border-radius:999px; transition:all .2s var(--ease);
 }
-.quality-btn:hover{ color:var(--text-bright); }
-.quality-btn.is-active{ background:var(--accent); color:var(--text-bright); box-shadow:0 0 0 1px rgba(139,30,34,.4); }
-.quality-btn[disabled]{ opacity:.35; cursor:not-allowed; }
+.quality-btn:hover:not(:disabled){ color:var(--text-bright); }
+.quality-btn.is-active{
+  background:var(--accent); color:var(--text-bright);
+  box-shadow:0 0 12px -2px var(--accent-glow);
+}
+.quality-btn:disabled{ opacity:.35; cursor:not-allowed; }
 
-.sleep-timer{ position:relative; display:flex; justify-content:center; margin:0 0 18px; }
+/* ---- Sleep timer ---- */
+.sleep-timer{ position:relative; display:flex; justify-content:center; margin-bottom:18px; }
 .sleep-timer__toggle{
-  display:flex; align-items:center; gap:7px; font-family:var(--font-ui); font-size:.72rem; font-weight:600;
-  letter-spacing:.5px; color:var(--text-dim); background:var(--bg-raised); border:1px solid var(--surface);
-  border-radius:16px; padding:6px 14px; cursor:pointer; transition:color .2s var(--ease), border-color .2s var(--ease);
+  display:flex; align-items:center; gap:8px;
+  background:transparent; border:1px solid var(--surface); color:var(--text-dim);
+  font-family:var(--font-ui); font-size:.78rem; font-weight:600; letter-spacing:.3px;
+  padding:8px 16px; border-radius:999px; transition:all .2s var(--ease);
 }
-.sleep-timer__toggle svg{ width:14px; height:14px; }
-.sleep-timer__toggle:hover{ color:var(--text-bright); border-color:var(--accent); }
-.sleep-timer.is-active .sleep-timer__toggle{ color:var(--accent-bright); border-color:var(--accent); }
+.sleep-timer__toggle svg{ width:15px; height:15px; flex-shrink:0; }
+.sleep-timer__toggle:hover{ border-color:var(--accent); color:var(--text-bright); }
+.sleep-timer.is-active .sleep-timer__toggle{
+  border-color:var(--accent); color:var(--accent-bright);
+  box-shadow:0 0 12px -4px var(--accent-glow);
+}
 .sleep-timer__menu{
   position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%);
-  display:flex; flex-direction:column; gap:2px; min-width:170px; padding:6px;
-  background:var(--bg-raised); border:1px solid var(--surface); border-radius:12px;
-  box-shadow:0 12px 30px -10px rgba(0,0,0,.6); z-index:20;
+  display:flex; flex-direction:column; gap:2px; min-width:180px;
+  background:var(--bg-raised); border:1px solid var(--surface); border-radius:var(--radius-md);
+  padding:6px; box-shadow:0 20px 40px -10px rgba(0,0,0,.7); z-index:5;
 }
 .sleep-timer__opt{
-  font-family:var(--font-ui); font-size:.78rem; text-align:left; color:var(--text);
-  background:transparent; border:none; border-radius:8px; padding:8px 10px; cursor:pointer;
-  transition:background .15s var(--ease), color .15s var(--ease);
+  background:transparent; border:none; color:var(--text);
+  font-family:var(--font-ui); font-size:.82rem; text-align:left;
+  padding:9px 12px; border-radius:var(--radius-sm); transition:background .18s var(--ease), color .18s var(--ease);
 }
 .sleep-timer__opt:hover{ background:rgba(139,30,34,.14); color:var(--text-bright); }
-.sleep-timer__opt--off{ color:var(--text-dim); border-top:1px solid var(--surface); margin-top:4px; padding-top:9px; }
+.sleep-timer__opt--off{ color:var(--text-dim); border-top:1px solid rgba(74,83,90,.4); margin-top:4px; padding-top:10px; }
 .sleep-timer__opt--off:hover{ color:var(--accent-bright); }
-
 
 .progress-wrap{ display:flex; align-items:center; gap:10px; margin-bottom:18px; }
 .progress-time{ font-family:var(--font-ui); font-size:.75rem; color:var(--text-dim); font-variant-numeric:tabular-nums; width:34px; flex-shrink:0; }
