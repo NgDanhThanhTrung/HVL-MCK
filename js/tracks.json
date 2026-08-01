@@ -1,0 +1,302 @@
+[
+  {
+    "id": 1,
+    "title": "Elegie",
+    "artist": "MCK",
+    "duration": "1:26",
+    "cover_art": "assets/covers/01. Elegie.jpg",
+    "mp3_url": "assets/audio/MP3/01. Elegie.mp3",
+    "flac_url": "assets/audio/FLAC/01. Elegie.flac",
+    "youtube_id": "REPLACE_WITH_YOUTUBE_ID"
+  },
+  {
+    "id": 2,
+    "title": "IDK",
+    "artist": "MCK",
+    "duration": "3:17",
+    "cover_art": "assets/covers/02. IDK.jpg",
+    "mp3_url": "assets/audio/MP3/02. IDK.mp3",
+    "flac_url": "assets/audio/FLAC/02. IDK.flac",
+    "youtube_id": "ZGlN1EUUZP8"
+  },
+  {
+    "id": 3,
+    "title": "Wtf Bby I'm Lit",
+    "artist": "MCK",
+    "duration": "2:48",
+    "cover_art": "assets/covers/03. Wtf Bby I'm Lit.jpg",
+    "mp3_url": "assets/audio/MP3/03. Wtf Bby I_m Lit.mp3",
+    "flac_url": "assets/audio/FLAC/03. Wtf Bby I_m Lit.flac",
+    "youtube_id": "JCiukN5zNMA"
+  },
+  {
+    "id": 4,
+    "title": "Anh Không Muốn Nó Dễ Dàng",
+    "artist": "MCK",
+    "duration": "2:48",
+    "cover_art": "assets/covers/04. Anh Không Muốn Nó Dễ Dàng.jpg",
+    "mp3_url": "assets/audio/MP3/04. Anh Không Muốn Nó Dễ Dàng.mp3",
+    "flac_url": "assets/audio/FLAC/04. Anh Không Muốn Nó Dễ Dàng.flac",
+    "youtube_id": "hmDh0u1H8-w"
+  },
+  {
+    "id": 5,
+    "title": "Baby",
+    "artist": "MCK feat. Marzuz",
+    "duration": "2:54",
+    "cover_art": "assets/covers/05. Baby.jpg",
+    "mp3_url": "assets/audio/MP3/05. Baby (feat. marzuz).mp3",
+    "flac_url": "assets/audio/FLAC/05. Baby (feat. marzuz).flac",
+    "youtube_id": "4yJqaoYzeuU"
+  },
+  {
+    "id": 6,
+    "title": "Yêu Anh Giết Anh",
+    "artist": "MCK",
+    "duration": "2:48",
+    "cover_art": "assets/covers/06. Yêu Anh Giết Anh.jpg",
+    "mp3_url": "assets/audio/MP3/06. Yêu Anh Giết Anh.mp3",
+    "flac_url": "assets/audio/FLAC/06. Yêu Anh Giết Anh.flac",
+    "youtube_id": "JjatfUpf3qk"
+  },
+  {
+    "id": 7,
+    "title": "Mắt Môi Tay Chân",
+    "artist": "MCK feat. Tage",
+    "duration": "3:15",
+    "cover_art": "assets/covers/07. Mắt Môi Tay Chân.jpg",
+    "mp3_url": "assets/audio/MP3/07. Mắt Môi Tay Chân (feat. Tage).mp3",
+    "flac_url": "assets/audio/FLAC/07. Mắt Môi Tay Chân (feat. Tage).flac",
+    "youtube_id": "4u3IJbd0XWw"
+  },
+  {
+    "id": 8,
+    "title": "Đao Của Anh Vừa",
+    "artist": "MCK",
+    "duration": "2:05",
+    "cover_art": "assets/covers/08. Đao Của Anh Vừa.jpg",
+    "mp3_url": "assets/audio/MP3/08. Đao Của Anh Vừa.mp3",
+    "flac_url": "assets/audio/FLAC/08. Đao Của Anh Vừa.flac",
+    "youtube_id": "1QmN9WRuWp4"
+  },
+  {
+    "id": 9,
+    "title": "Là Gì Của Nhau",
+    "artist": "MCK",
+    "duration": "2:22",
+    "cover_art": "assets/covers/09. Là Gì Của Nhau.jpg",
+    "mp3_url": "assets/audio/MP3/09. Là Gì Của Nhau.mp3",
+    "flac_url": "assets/audio/FLAC/09. Là Gì Của Nhau.flac",
+    "youtube_id": "HRYIt4pG6wY"
+  },
+  {
+    "id": 10,
+    "title": "Night In Prague",
+    "artist": "MCK",
+    "duration": "3:34",
+    "cover_art": "assets/covers/10. Night In Prague.jpg",
+    "mp3_url": "assets/audio/MP3/10. Night In Prague.mp3",
+    "flac_url": "assets/audio/FLAC/10. Night In Prague.flac",
+    "youtube_id": "FgE2MouF9qA"
+  },
+  {
+    "id": 11,
+    "title": "Một Cái Ôm",
+    "artist": "MCK",
+    "duration": "3:23",
+    "cover_art": "assets/covers/11. Một Cái Ôm.jpg",
+    "mp3_url": "assets/audio/MP3/11. Một Cái Ôm.mp3",
+    "flac_url": "assets/audio/FLAC/11. Một Cái Ôm.flac",
+    "youtube_id": "mbrefB4nB7M"
+  },
+  {
+    "id": 12,
+    "title": "Liệm",
+    "artist": "MCK",
+    "duration": "3:55",
+    "cover_art": "assets/covers/12. Liệm.jpg",
+    "mp3_url": "assets/audio/MP3/12. Liệm.mp3",
+    "flac_url": "assets/audio/FLAC/12. Liệm.flac",
+    "youtube_id": "5a5rvThYGkc"
+  },
+  {
+    "id": 13,
+    "title": "Nếu Như Ta Chẳng Còn",
+    "artist": "MCK feat. A$AP Ướt Mi",
+    "duration": "5:15",
+    "cover_art": "assets/covers/13. Nếu Như Ta Chẳng Còn.jpg",
+    "mp3_url": "assets/audio/MP3/13. Nếu Như Ta Chẳng Còn.mp3",
+    "flac_url": "assets/audio/FLAC/13. Nếu Như Ta Chẳng Còn.flac",
+    "youtube_id": "WvFs65KzLP0"
+  },
+  {
+    "id": 14,
+    "title": "Ai Mới Là Kẻ Xấu Xa",
+    "artist": "MCK",
+    "duration": "3:12",
+    "cover_art": "assets/covers/14. Ai Mới Là Kẻ Xấu Xa.jpg",
+    "mp3_url": "assets/audio/MP3/14. Ai Mới Là Kẻ Xấu Xa.mp3",
+    "flac_url": "assets/audio/FLAC/14. Ai Mới Là Kẻ Xấu Xa.flac",
+    "youtube_id": "x2dvUaewOoU"
+  },
+  {
+    "id": 15,
+    "title": "Slippery",
+    "artist": "MCK feat. Tùng Dương",
+    "duration": "3:35",
+    "cover_art": "assets/covers/15. Slippery.jpg",
+    "mp3_url": "assets/audio/MP3/15. Slippery.mp3",
+    "flac_url": "assets/audio/FLAC/15. Slippery.flac",
+    "youtube_id": "cArmbmplVEM"
+  },
+  {
+    "id": 16,
+    "title": "Intenpol",
+    "artist": "MCK",
+    "duration": "0:58",
+    "cover_art": "assets/covers/16. Intenpol.jpg",
+    "mp3_url": "assets/audio/MP3/16. Intenpol.mp3",
+    "flac_url": "assets/audio/FLAC/16. Intenpol.flac",
+    "youtube_id": "eKeZemGbQVA"
+  },
+  {
+    "id": 17,
+    "title": "Tây Thi",
+    "artist": "MCK",
+    "duration": "1:48",
+    "cover_art": "assets/covers/17. Tây Thi.jpg",
+    "mp3_url": "assets/audio/MP3/17. Tây Thi.mp3",
+    "flac_url": "assets/audio/FLAC/17. Tây Thi.flac",
+    "youtube_id": "mNoUp0ZYchg"
+  },
+  {
+    "id": 18,
+    "title": "Hút và Hút",
+    "artist": "MCK",
+    "duration": "2:15",
+    "cover_art": "assets/covers/18. Hút và Hút.jpg",
+    "mp3_url": "assets/audio/MP3/18. Hút và Hút.mp3",
+    "flac_url": "assets/audio/FLAC/18. Hút và Hút.flac",
+    "youtube_id": "XqIHUs-ZBtM"
+  },
+  {
+    "id": 19,
+    "title": "Dưa Chua",
+    "artist": "MCK",
+    "duration": "3:08",
+    "cover_art": "assets/covers/19. Dưa Chua.jpg",
+    "mp3_url": "assets/audio/MP3/19. Dưa Chua.mp3",
+    "flac_url": "assets/audio/FLAC/19. Dưa Chua.flac",
+    "youtube_id": "0PZCVtyjIKk"
+  },
+  {
+    "id": 20,
+    "title": "Xa Xôi",
+    "artist": "MCK feat. Obito",
+    "duration": "3:06",
+    "cover_art": "assets/covers/20. Xa Xôi.jpg",
+    "mp3_url": "assets/audio/MP3/20. Xa Xôi.mp3",
+    "flac_url": "assets/audio/FLAC/20. Xa Xôi.flac",
+    "youtube_id": "_kbrcVLqZnA"
+  },
+  {
+    "id": 21,
+    "title": "Che Phủ",
+    "artist": "MCK",
+    "duration": "2:36",
+    "cover_art": "assets/covers/21. Che Phủ.jpg",
+    "mp3_url": "assets/audio/MP3/21. Che Phủ.mp3",
+    "flac_url": "assets/audio/FLAC/21. Che Phủ.flac",
+    "youtube_id": "Iik1DuHFtOc"
+  },
+  {
+    "id": 22,
+    "title": "Oanh M = Thuốc",
+    "artist": "MCK",
+    "duration": "3:26",
+    "cover_art": "assets/covers/22. Oanh M = Thuốc.jpg",
+    "mp3_url": "assets/audio/MP3/22. Oanh M = Thuốc.mp3",
+    "flac_url": "assets/audio/FLAC/22. Oanh M = Thuốc.flac",
+    "youtube_id": "qnaPngEsIvo"
+  },
+  {
+    "id": 23,
+    "title": "Ghét Xong Lại Thích",
+    "artist": "MCK",
+    "duration": "1:54",
+    "cover_art": "assets/covers/23. Ghét Xong Lại Thích.jpg",
+    "mp3_url": "assets/audio/MP3/23. Ghét Xong Lại Thích.mp3",
+    "flac_url": "assets/audio/FLAC/23. Ghét Xong Lại Thích.flac",
+    "youtube_id": "lMtcQeSc-4w"
+  },
+  {
+    "id": 24,
+    "title": "Nhìn Kẻ Thù Của Tao",
+    "artist": "MCK",
+    "duration": "3:59",
+    "cover_art": "assets/covers/24. Nhìn Kẻ Thù Của Tao.jpg",
+    "mp3_url": "assets/audio/MP3/24. Nhìn Kẻ Thù Của Tao.mp3",
+    "flac_url": "assets/audio/FLAC/24. Nhìn Kẻ Thù Của Tao.flac",
+    "youtube_id": "Mvf2-JJJ2OQ"
+  },
+  {
+    "id": 25,
+    "title": "Envy",
+    "artist": "MCK feat. Thành Draw",
+    "duration": "3:56",
+    "cover_art": "assets/covers/25. Envy.jpg",
+    "mp3_url": "assets/audio/MP3/25. Envy.mp3",
+    "flac_url": "assets/audio/FLAC/25. Envy.flac",
+    "youtube_id": "AQMDsRQCFTI"
+  },
+  {
+    "id": 26,
+    "title": "Cảm Ơn",
+    "artist": "MCK",
+    "duration": "2:40",
+    "cover_art": "assets/covers/26. Cảm Ơn.jpg",
+    "mp3_url": "assets/audio/MP3/26. Cảm Ơn.mp3",
+    "flac_url": "assets/audio/FLAC/26. Cảm Ơn.flac",
+    "youtube_id": "bmeHqmXLX7s"
+  },
+  {
+    "id": 27,
+    "title": "Không Cần Lo Cho Tao",
+    "artist": "MCK",
+    "duration": "2:41",
+    "cover_art": "assets/covers/27. Không Cần Lo Cho Tao.jpg",
+    "mp3_url": "assets/audio/MP3/27. Không Cần Lo Cho Tao.mp3",
+    "flac_url": "assets/audio/FLAC/27. Không Cần Lo Cho Tao.flac",
+    "youtube_id": "5pzyhTETX3E"
+  },
+  {
+    "id": 28,
+    "title": "Huh",
+    "artist": "MCK feat. RPT Orijinn & Thành Draw",
+    "duration": "4:12",
+    "cover_art": "assets/covers/28. Huh.jpg",
+    "mp3_url": "assets/audio/MP3/28. Huh.mp3",
+    "flac_url": "assets/audio/FLAC/28. Huh.flac",
+    "youtube_id": "j2zgSY3W3Q8"
+  },
+  {
+    "id": 29,
+    "title": "Nguyễn Văn Mười",
+    "artist": "MCK",
+    "duration": "4:02",
+    "cover_art": "assets/covers/29. Nguyễn Văn Mười.jpg",
+    "mp3_url": "assets/audio/MP3/29. Nguyễn Văn Mười.mp3",
+    "flac_url": "assets/audio/FLAC/29. Nguyễn Văn Mười.flac",
+    "youtube_id": "qewXogM-N40"
+  },
+  {
+    "id": 30,
+    "title": "Thịt Lợn",
+    "artist": "MCK",
+    "duration": "4:56",
+    "cover_art": "assets/covers/30. Thịt Lợn.jpg",
+    "mp3_url": "assets/audio/MP3/30. Thịt Lợn.mp3",
+    "flac_url": "assets/audio/FLAC/30. Thịt Lợn.flac",
+    "youtube_id": "gcnT3AqMyDE"
+  }
+]
