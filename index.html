@@ -26,6 +26,12 @@
   <path d="M300 100 L360 300 L300 500 L240 300 Z" fill="none" stroke="currentColor" stroke-width="1.5"/>
 </svg>
 
+<!-- ================= MÀN SƯƠNG TĨNH LẶNG (Interactive Fog) =================
+     - fogHiddenLayer: các rune/hoạ tiết Gothic mờ, bị lớp sương che gần như kín.
+     - fogCanvas: lớp sương mờ phủ trên nền, di chuyển chuột sẽ "rẽ" sương lộ ra hoạ tiết bên dưới. -->
+<div class="fog-hidden-layer" id="fogHiddenLayer" aria-hidden="true"></div>
+<canvas class="fog-canvas" id="fogCanvas" aria-hidden="true"></canvas>
+
 <!-- ================= HEADER / NAV ================= -->
 <header class="site-header">
   <div class="header-inner">
@@ -254,5 +260,6 @@
 </button>
 
 <script src="js/main.js"></script>
+<script src="js/fog.js"></script>
 </body>
 </html>
