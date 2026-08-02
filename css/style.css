@@ -337,7 +337,7 @@ mark{ background:transparent; color:var(--accent-bright); text-decoration:underl
   transition:max-height .32s var(--ease), opacity .25s var(--ease), padding .32s var(--ease);
   background:var(--bg-raised); border-radius:var(--radius-md);
 }
-.track.is-open .format-popup{ max-height:120px; opacity:1; padding:12px; margin:0 10px 12px; border:1px solid rgba(139,30,34,.3); }
+.track.is-open .format-popup{ max-height:280px; opacity:1; padding:12px; margin:0 10px 12px; border:1px solid rgba(139,30,34,.3); }
 
 .format-popup__inner{ display:flex; gap:10px; flex-wrap:wrap; }
 .format-btn{
@@ -558,6 +558,24 @@ mark{ background:transparent; color:var(--accent-bright); text-decoration:underl
   .mobile-bar__eq i:nth-child(1){ animation-delay:-.4s; } .mobile-bar__eq i:nth-child(2){ animation-delay:-.2s; } .mobile-bar__eq i:nth-child(3){ animation-delay:0s; }
   .mobile-bar__title{ flex:1; text-align:left; font-family:var(--font-ui); font-weight:600; font-size:.88rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .mobile-bar__hint{ font-family:var(--font-ui); font-size:.72rem; color:var(--text-dim); flex-shrink:0; }
+}
+
+/* ============================================================
+   TOAST — thông báo ngắn (thêm vào hàng đợi, đã sao chép link...)
+   ============================================================ */
+.toast{
+  position:fixed; left:50%; bottom:28px; z-index:80;
+  transform:translate(-50%, 16px); opacity:0; pointer-events:none;
+  background:var(--bg-raised); border:1px solid var(--accent);
+  color:var(--text-bright); font-family:var(--font-ui); font-size:.85rem; font-weight:500;
+  padding:12px 20px; border-radius:999px; max-width:min(90vw, 420px);
+  text-align:center; white-space:normal;
+  box-shadow:0 14px 34px -10px rgba(0,0,0,.7), 0 0 20px -6px var(--accent-glow);
+  transition:transform .3s var(--ease), opacity .3s var(--ease);
+}
+.toast.is-visible{ transform:translate(-50%, 0); opacity:1; }
+@media (max-width:1080px){
+  .toast{ bottom:88px; } /* tránh đè lên mobile mini-player bar */
 }
 
 @media (max-width:860px){
