@@ -18,12 +18,19 @@ hvl-album/
 ├── css/
 │   └── style.css             ← Toàn bộ style (màu sắc, layout, hiệu ứng)
 ├── js/
-│   ├── main.js                ← Toàn bộ logic (tracklist, player, equalizer...)
+│   ├── main.js                ← Toàn bộ logic (tracklist, player, equalizer, FLAC/MP3, hẹn giờ ngủ...)
 │   └── tracks.json            ← Dữ liệu 30 bài hát — ĐÂY LÀ FILE BẠN SẼ SỬA NHIỀU NHẤT
 └── assets/
     ├── covers/                ← Bỏ 30 ảnh bìa từng bài + 1 ảnh bìa album chính vào đây (nếu không dùng Cloudflare R2)
-    └── audio/                 ← Bỏ 30 file MP3 vào đây (chỉ để demo — traffic lớn nên dùng Cloudflare R2, xem Bước 2C)
+    └── audio/
+        ├── MP3/                ← Bỏ 30 file MP3 vào đây (chỉ để demo — traffic lớn nên dùng Cloudflare R2, xem Bước 2C)
+        └── FLAC/                ← Bỏ 30 file FLAC vào đây (tuỳ chọn — cho người nghe muốn chất lượng cao hơn)
 ```
+
+**Tính năng đã có sẵn trong `main.js`:**
+- Chọn chất lượng phát **Tự động / FLAC / MP3** (nút bấm trong trình phát) — "Tự động" sẽ ưu tiên FLAC nếu trình duyệt hỗ trợ, không thì dùng MP3; nếu 1 định dạng bị lỗi/thiếu file, tự động rơi về định dạng còn lại.
+- **Hẹn giờ ngủ** (15/30/45/60 phút hoặc "hết bài đang phát"), tự fade âm lượng rồi dừng nhạc.
+- **Media Session API** — hiện tên bài/ảnh bìa và nút điều khiển ngay trên màn hình khoá điện thoại / thông báo hệ thống khi nghe nhạc.
 
 **Bước 1 — Chuẩn bị:**
 1. Tải toàn bộ project về máy (giải nén nếu là file `.zip`).
@@ -49,9 +56,9 @@ hvl-album/
 - **Lưu ý:** tên file có dấu cách và dấu tiếng Việt vẫn hoạt động bình thường (trang web tự động encode khi tải ảnh) — chỉ cần gõ **chính xác chữ hoa/thường và dấu câu** giống hệt tên bài (kể cả dấu `'` trong "Wtf Bby I'm Lit"), nếu không ảnh sẽ không khớp.
 - Nếu không có ảnh riêng cho từng bài, bạn có thể dùng chung 1 ảnh bìa album cho tất cả — chỉ cần sửa lại từng dòng `cover_art` trong `tracks.json` để trỏ cùng về `"assets/covers/cover.jpg"`.
 
-### C. 30 file MP3 — nên lưu ở đâu để tối ưu băng thông?
+### C. 30 file MP3 (+ FLAC tuỳ chọn) — nên lưu ở đâu để tối ưu băng thông?
 
-Nếu chỉ demo cá nhân, để file MP3 trong `assets/audio/` như trên là đủ. Nhưng nếu bạn định public cho **nhiều người nghe cùng lúc**, KHÔNG nên để MP3 nằm chung trong repo deploy (Render/Vercel/GitHub Pages) — vì các nền tảng này tính phí hoặc giới hạn **bandwidth (băng thông)** khi lượng truy cập lớn. Cách đúng là: **tách file media ra một Object Storage + CDN chuyên dụng**, chỉ dán URL đầy đủ vào `mp3_url` trong `tracks.json` — code hiện tại đã hỗ trợ sẵn URL ngoài, không cần sửa gì thêm.
+`tracks.json` đã có sẵn 2 trường cho mỗi bài: `mp3_url` (bắt buộc) và `flac_url` (tuỳ chọn, chất lượng cao hơn — có thể bỏ trống nếu không có file FLAC, trang sẽ tự dùng MP3). Nếu chỉ demo cá nhân, để file trong `assets/audio/MP3/` và `assets/audio/FLAC/` như trên là đủ. Nhưng nếu bạn định public cho **nhiều người nghe cùng lúc**, KHÔNG nên để media nằm chung trong repo deploy (Render/Vercel/GitHub Pages) — vì các nền tảng này tính phí hoặc giới hạn **bandwidth (băng thông)** khi lượng truy cập lớn, và file FLAC vốn nặng hơn MP3 nhiều lần nên càng cần tách ra. Cách đúng là: **tách file media ra một Object Storage + CDN chuyên dụng**, chỉ dán URL đầy đủ vào `mp3_url`/`flac_url` trong `tracks.json` — code hiện tại đã hỗ trợ sẵn URL ngoài, không cần sửa gì thêm.
 
 So sánh các lựa chọn **miễn phí / gần như miễn phí**, xếp theo độ phù hợp với traffic lớn:
 
