@@ -704,7 +704,6 @@ mark{ background:transparent; color:var(--accent-bright); text-decoration:underl
     pointer-events: none;
   }
 }
-
 /* ============================================================
    TOAST — thông báo ngắn (thêm vào hàng đợi, đã sao chép link...)
    ============================================================ */
