@@ -17,11 +17,11 @@ const PORT = process.env.PORT || 3000; // Render tự cấp biến PORT, không 
 app.use(cors());
 
 // express.static tự động xử lý Range Requests (206 Partial Content)
-// -> cần thiết để tua nhanh file flac/mp4 mà không phải tải lại từ đầu
+// -> cần thiết để tua nhanh file mp3/mp4 mà không phải tải lại từ đầu
 app.use(express.static(path.join(__dirname), {
   maxAge: '7d', // cache 7 ngày cho assets tĩnh (css/js/ảnh) ở phía trình duyệt/CDN
   setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.flac') || filePath.endsWith('.mp3') || filePath.endsWith('.mp4')) {
+    if (filePath.endsWith('.mp3') || filePath.endsWith('.mp4')) {
       res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
       res.setHeader('Accept-Ranges', 'bytes');
     }

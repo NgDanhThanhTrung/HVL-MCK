@@ -26,6 +26,12 @@
   <path d="M300 100 L360 300 L300 500 L240 300 Z" fill="none" stroke="currentColor" stroke-width="1.5"/>
 </svg>
 
+<!-- ================= MÀN SƯƠNG TĨNH LẶNG (Interactive Fog) =================
+     - fogHiddenLayer: các rune/hoạ tiết Gothic mờ, bị lớp sương che gần như kín.
+     - fogCanvas: lớp sương mờ phủ trên nền, di chuyển chuột sẽ "rẽ" sương lộ ra hoạ tiết bên dưới. -->
+<div class="fog-hidden-layer" id="fogHiddenLayer" aria-hidden="true"></div>
+<canvas class="fog-canvas" id="fogCanvas" aria-hidden="true"></canvas>
+
 <!-- ================= HEADER / NAV ================= -->
 <header class="site-header">
   <div class="header-inner">
@@ -128,14 +134,16 @@
       <!-- ---------- FIXED PLAYER PANEL ---------- -->
       <aside class="player-col" id="playerCol">
         <div class="player-panel" id="playerPanel">
-
-          <div class="player-panel__empty" id="playerEmpty">
-            <svg viewBox="0 0 100 100" class="empty-disc" aria-hidden="true">
-              <circle cx="50" cy="50" r="42" fill="none" stroke="#4A535A" stroke-width="1.4"/>
-              <circle cx="50" cy="50" r="10" fill="none" stroke="#8B1E22" stroke-width="1.4"/>
-            </svg>
-            <p>Chọn một bài hát ở danh sách bên trái để bắt đầu nghe.</p>
+          <div class="player-panel__header">
+            <button class="player-panel__close" id="closePlayerBtn" type="button" title="Tắt nhạc" aria-label="Tắt nhạc">
+              <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+            <button class="player-panel__minimize" id="minimizePlayerBtn" type="button" title="Ẩn nhạc" aria-label="Ẩn nhạc">
+              <svg viewBox="0 0 24 24"><path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
           </div>
+
+          <div class="player-panel__empty" id="playerEmpty"></div>
 
           <!-- MODE: AUDIO / CD PLAYER -->
           <div class="player-panel__audio" id="audioMode" hidden>
@@ -148,7 +156,12 @@
                     <text x="200" y="215" text-anchor="middle" font-family="Cinzel" font-size="40" fill="#C5CBCE" letter-spacing="4">HVL</text>
                   </svg>
                 </div>
-                <div class="disc__hole"></div>
+                <div class="disc__hole">
+                  <svg viewBox="0 0 100 100" class="empty-disc" aria-hidden="true">
+                    <circle cx="50" cy="50" r="42" fill="none" stroke="#4A535A" stroke-width="1.4"/>
+                    <circle cx="50" cy="50" r="10" fill="none" stroke="#8B1E22" stroke-width="1.4"/>
+                  </svg>
+                </div>
                 <div class="disc__sheen"></div>
               </div>
             </div>
@@ -208,7 +221,8 @@
               </button>
             </div>
 
-            <audio id="audioEl" preload="none"></audio>
+            <audio id="audioElA" preload="none"></audio>
+            <audio id="audioElB" preload="none"></audio>
           </div>
 
           <!-- MODE: VIDEO / CRT -->
@@ -253,6 +267,10 @@
   <span class="mobile-bar__hint">Chạm để mở</span>
 </button>
 
+<!-- Toast thông báo ngắn (thêm vào hàng đợi / đã sao chép link) -->
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
 <script src="js/main.js"></script>
+<script src="js/fog.js"></script>
 </body>
 </html>
