@@ -6,21 +6,25 @@
 (() => {
   'use strict';
 
-  /* ---------------- State ---------------- */
   const QUALITY_STORAGE_KEY = 'hvl_quality_pref';
+  const CROSSFADE_SEC = 1.5; // thời lượng fade out/in khi chuyển bài
+
+  /* ---------------- State ---------------- */
   const state = {
     tracks: [],
-    filtered: [],
-    currentIndex: -1,   // index within state.tracks
-    mode: null,         // 'audio' | 'video' | null
+    trackEls: new Map(), // track.id -> <li> element (giữ nguyên DOM để CSS transition popup chạy mượt)
+    currentIndex: -1,    // index within state.tracks
+    mode: null,          // 'audio' | 'video' | null
     isPlaying: false,
     isShuffle: false,
     isRepeat: false,
-    shuffleBag: [],      // remaining shuffle order (indices)
-    openTrackId: null,   // which track row has its popup open
+    shuffleBag: [],       // remaining shuffle order (indices)
+    openTrackId: null,    // track nào đang mở popup chọn định dạng
     audioCtx: null,
     analyser: null,
-    sourceNode: null,
+    masterGain: null,     // gain tổng, dùng cho hẹn giờ ngủ (fade out toàn cục)
+    players: [],           // 2 player {el, gain, sourceNode, gen} để crossfade — gán ngay sau khi lấy DOM refs
+    activePlayer: 0,       // 0 hoặc 1 — player nào đang là "tiền cảnh" (đang phát chính)
     rafId: null,
     // 'auto' | 'flac' | 'mp3' — lựa chọn chất lượng của người dùng, nhớ qua localStorage
     qualityPref: (() => {
@@ -33,6 +37,7 @@
     })(),
     triedFallback: false,
     sleepTimer: { mode: null, endsAt: null, intervalId: null }, // mode: null | 'end' | minutes(number)
+    queue: [], // hàng đợi "phát tiếp theo" — mảng track.id, ưu tiên hơn thứ tự thường/shuffle
   };
 
   /* ---------------- DOM refs ---------------- */
@@ -53,8 +58,35 @@
   const audioMode    = $('#audioMode');
   const videoMode    = $('#videoMode');
 
-  const audioEl      = $('#audioEl');
+  const discEl       = $('#discEl');
+  const discArt      = $('#discArt');
+  const eqCanvas     = $('#eqCanvas');
+  const eqCtx        = eqCanvas.getContext('2d');
   const qualityBtns  = document.querySelectorAll('.quality-btn');
+
+  // Hai <audio> element luân phiên nhau — 1 cái đang là "tiền cảnh" (đang phát
+  // chính), cái còn lại dùng để nạp + fade-in bài kế tiếp trong lúc bài hiện
+  // tại fade-out, tạo hiệu ứng chuyển bài liền mạch (crossfade).
+  const audioElA = $('#audioElA');
+  const audioElB = $('#audioElB');
+  state.players = [
+    { el: audioElA, gain: null, sourceNode: null, gen: 0 },
+    { el: audioElB, gain: null, sourceNode: null, gen: 0 },
+  ];
+
+  const npTitle  = $('#npTitle');
+  const npArtist = $('#npArtist');
+  const curTimeEl = $('#curTime');
+  const durTimeEl = $('#durTime');
+  const seekBar   = $('#seekBar');
+
+  const playPauseBtn = $('#playPauseBtn');
+  const playIcon = $('#playIcon');
+  const pauseIcon = $('#pauseIcon');
+  const prevBtn = $('#prevBtn');
+  const nextBtn = $('#nextBtn');
+  const shuffleToggle = $('#shuffleToggle');
+  const repeatToggle  = $('#repeatToggle');
 
   const sleepTimerEl     = $('#sleepTimer');
   const sleepTimerToggle = $('#sleepTimerToggle');
@@ -62,9 +94,135 @@
   const sleepTimerLabel  = $('#sleepTimerLabel');
   const sleepTimerOpts   = document.querySelectorAll('.sleep-timer__opt');
 
-  /* ---------------- Audio format capability ---------------- */
-  // Kiểm tra trình duyệt/thiết bị có phát được FLAC không.
-  // canPlayType trả về '' (không hỗ trợ), 'maybe', hoặc 'probably'.
+  const ytEmbedWrap  = $('#ytEmbedWrap');
+  const npTitleVideo  = $('#npTitleVideo');
+  const npArtistVideo = $('#npArtistVideo');
+  const backToAudioBtn = $('#backToAudioBtn');
+  const prevBtnVideo = $('#prevBtnVideo');
+  const nextBtnVideo = $('#nextBtnVideo');
+
+  const mobileBar = $('#mobileBar');
+  const mobileBarTitle = $('#mobileBarTitle');
+  const toastEl = $('#toast');
+
+  /* ---------------- Helpers ---------------- */
+  const pad2 = (n) => String(n).padStart(2, '0');
+  // Tên hiển thị đầy đủ: "01. Elegie" — dùng cho khu vực đang phát / mini-status / lock-screen.
+  const displayTitle = (track) => `${pad2(track.id)}. ${track.title}`;
+  // Player đang là "tiền cảnh" tại thời điểm gọi — luôn lấy động vì 2 audio
+  // element hoán đổi vai trò liên tục qua mỗi lần crossfade.
+  const activeEl = () => state.players[state.activePlayer].el;
+
+  function fmtTime(sec){
+    if (!isFinite(sec) || sec < 0) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${pad2(s)}`;
+  }
+
+  function durationToSeconds(str){
+    const parts = String(str).split(':').map(Number);
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return 0;
+  }
+
+  function escapeHtml(str){
+    return str.replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function highlight(text, query){
+    if (!query) return escapeHtml(text);
+    const safe = escapeHtml(text);
+    const q = escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return safe.replace(new RegExp(`(${q})`, 'ig'), '<mark>$1</mark>');
+  }
+
+  /* ---------------- Toast — thông báo ngắn ---------------- */
+  let toastTimer = null;
+  function showToast(message){
+    if (!toastEl) return;
+    toastEl.textContent = message;
+    toastEl.classList.add('is-visible');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toastEl.classList.remove('is-visible');
+    }, 2400);
+  }
+
+  /* ============================================================
+     HÀNG ĐỢI "PHÁT TIẾP THEO" — ưu tiên hơn thứ tự thường/shuffle
+     ============================================================ */
+  function addToQueue(track){
+    if (state.queue.includes(track.id)){
+      showToast(`"${displayTitle(track)}" đã có trong hàng đợi rồi`);
+      return;
+    }
+    state.queue.push(track.id);
+    updateQueueUI();
+    showToast(`Đã thêm "${displayTitle(track)}" vào hàng đợi phát tiếp theo`);
+  }
+
+  function updateQueueUI(){
+    const n = state.queue.length;
+    const title = n > 0 ? `Bài tiếp theo (${n} bài đang chờ trong hàng đợi)` : 'Bài tiếp theo';
+    nextBtn.title = title;
+    nextBtnVideo.title = title;
+  }
+
+  /* ============================================================
+     CHIA SẺ LINK BÀI HÁT
+     ============================================================ */
+  function buildShareUrl(track){
+    const url = new URL(window.location.href);
+    url.hash = '';
+    url.searchParams.set('track', track.id);
+    return url.toString();
+  }
+
+  async function shareTrack(track){
+    const url = buildShareUrl(track);
+    const shareData = {
+      title: 'HVL — MCK',
+      text: `Nghe "${track.title}" trong album HVL của MCK`,
+      url,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (e) {
+        // Người dùng bấm huỷ hộp thoại chia sẻ — không cần báo lỗi gì thêm.
+      }
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('Đã sao chép liên kết bài hát vào clipboard');
+    } catch (e) {
+      showToast(`Không sao chép được tự động — liên kết: ${url}`);
+    }
+  }
+
+  // Nếu trang được mở từ 1 link chia sẻ (?track=<id>), tự mở popup của đúng
+  // bài đó và cuộn tới để người xem thấy ngay, không tự động phát (tránh bị
+  // trình duyệt chặn autoplay).
+  function openTrackFromUrl(){
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const id = Number(params.get('track'));
+      if (!id) return;
+      const track = state.tracks.find((t) => t.id === id);
+      if (!track) return;
+      toggleTrackPopup(track.id);
+    } catch (e) {}
+  }
+
+  /* ============================================================
+     AUDIO FORMAT / CHẤT LƯỢNG — Tự động / FLAC / MP3
+     ============================================================ */
+
   const canPlayFlac = (() => {
     try {
       const probe = document.createElement('audio');
@@ -75,16 +233,12 @@
     }
   })();
 
-  // Trả về URL audio theo lựa chọn của người dùng:
-  // - 'flac' / 'mp3': dùng đúng định dạng đó nếu track có, không thì rơi về định dạng còn lại.
-  // - 'auto': FLAC nếu thiết bị hỗ trợ, ngược lại MP3.
   function pickAudioUrl(track){
     if (state.qualityPref === 'flac') return track.flac_url || track.mp3_url;
     if (state.qualityPref === 'mp3')  return track.mp3_url || track.flac_url;
     return canPlayFlac ? (track.flac_url || track.mp3_url) : (track.mp3_url || track.flac_url);
   }
 
-  // Nếu thiết bị không hỗ trợ FLAC, disable nút "FLAC" để tránh người dùng chọn nhầm.
   function initQualityControls(){
     qualityBtns.forEach((btn) => {
       const q = btn.dataset.quality;
@@ -105,19 +259,21 @@
           b.setAttribute('aria-checked', b.dataset.quality === q ? 'true' : 'false');
         });
 
-        // Nếu đang phát nhạc, đổi nguồn ngay tại vị trí hiện tại, không phát lại từ đầu.
+        // Đổi định dạng của bài ĐANG phát: giữ nguyên vị trí, không crossfade
+        // (đây là đổi chất lượng, không phải chuyển bài).
         if (state.mode === 'audio' && state.currentIndex !== -1) {
           const track = state.tracks[state.currentIndex];
           if (!track) return;
-          const resumeAt = audioEl.currentTime;
-          const wasPlaying = !audioEl.paused;
+          const el = activeEl();
+          const resumeAt = el.currentTime;
+          const wasPlaying = !el.paused;
           state.triedFallback = false;
-          audioEl.src = encodeURI(pickAudioUrl(track));
-          audioEl.addEventListener('loadedmetadata', function onceLoaded(){
-            audioEl.currentTime = resumeAt;
-            audioEl.removeEventListener('loadedmetadata', onceLoaded);
+          el.src = encodeURI(pickAudioUrl(track));
+          el.addEventListener('loadedmetadata', function onceLoaded(){
+            el.currentTime = resumeAt;
+            el.removeEventListener('loadedmetadata', onceLoaded);
           });
-          if (wasPlaying) audioEl.play().catch(() => {});
+          if (wasPlaying) el.play().catch(() => {});
         }
       });
     });
@@ -126,6 +282,8 @@
 
   /* ============================================================
      SLEEP TIMER — hẹn giờ tự tắt nhạc, tiện khi nghe lúc ngủ
+     (fade qua masterGain — dùng chung điểm ra loa cuối cùng của cả 2 player,
+     nên hoạt động đúng bất kể đang ở giữa 1 lần crossfade hay không)
      ============================================================ */
   function formatCountdown(ms){
     const totalSec = Math.max(0, Math.ceil(ms / 1000));
@@ -139,18 +297,19 @@
     state.sleepTimer = { mode: null, endsAt: null, intervalId: null };
     sleepTimerEl.classList.remove('is-active');
     sleepTimerLabel.textContent = 'Hẹn giờ ngủ';
-    audioEl.volume = 1;
+    if (state.masterGain) state.masterGain.gain.value = 1;
   }
 
   function fadeOutThenPause(){
     const step = 0.05;
     const intervalMs = 300; // ~5.4s để giảm dần từ 1 -> 0
     const fadeId = setInterval(() => {
-      audioEl.volume = Math.max(0, audioEl.volume - step);
-      if (audioEl.volume <= 0){
+      if (!state.masterGain) { clearInterval(fadeId); return; }
+      state.masterGain.gain.value = Math.max(0, state.masterGain.gain.value - step);
+      if (state.masterGain.gain.value <= 0){
         clearInterval(fadeId);
-        audioEl.pause();
-        audioEl.volume = 1;
+        activeEl().pause();
+        state.masterGain.gain.value = 1;
       }
     }, intervalMs);
   }
@@ -209,8 +368,7 @@
   });
 
   /* ============================================================
-     MEDIA SESSION — điều khiển ở màn hình khóa / thông báo hệ thống,
-     giúp phát nhạc mượt khi tắt màn hình hoặc chuyển app khác.
+     MEDIA SESSION — điều khiển ở màn hình khóa / thông báo hệ thống
      ============================================================ */
   const hasMediaSession = 'mediaSession' in navigator;
 
@@ -232,19 +390,21 @@
   }
 
   if (hasMediaSession) {
-    navigator.mediaSession.setActionHandler('play', () => audioEl.play().catch(() => {}));
-    navigator.mediaSession.setActionHandler('pause', () => audioEl.pause());
+    navigator.mediaSession.setActionHandler('play', () => activeEl().play().catch(() => {}));
+    navigator.mediaSession.setActionHandler('pause', () => activeEl().pause());
     navigator.mediaSession.setActionHandler('previoustrack', () => goToPrev());
     navigator.mediaSession.setActionHandler('nexttrack', () => goToNext());
     try {
       navigator.mediaSession.setActionHandler('seekbackward', (details) => {
-        audioEl.currentTime = Math.max(0, audioEl.currentTime - (details.seekOffset || 10));
+        const el = activeEl();
+        el.currentTime = Math.max(0, el.currentTime - (details.seekOffset || 10));
       });
       navigator.mediaSession.setActionHandler('seekforward', (details) => {
-        audioEl.currentTime = Math.min(audioEl.duration || Infinity, audioEl.currentTime + (details.seekOffset || 10));
+        const el = activeEl();
+        el.currentTime = Math.min(el.duration || Infinity, el.currentTime + (details.seekOffset || 10));
       });
       navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (details.seekTime != null) audioEl.currentTime = details.seekTime;
+        if (details.seekTime != null) activeEl().currentTime = details.seekTime;
       });
     } catch (e) {
       // Một số trình duyệt cũ chưa hỗ trợ seekbackward/seekforward/seekto — bỏ qua an toàn.
@@ -253,20 +413,17 @@
 
   function updateMediaSessionPositionState(){
     if (!hasMediaSession || !navigator.mediaSession.setPositionState) return;
-    if (!audioEl.duration || isNaN(audioEl.duration)) return;
+    const el = activeEl();
+    if (!el.duration || isNaN(el.duration)) return;
     try {
       navigator.mediaSession.setPositionState({
-        duration: audioEl.duration,
-        playbackRate: audioEl.playbackRate || 1,
-        position: audioEl.currentTime,
+        duration: el.duration,
+        playbackRate: el.playbackRate || 1,
+        position: el.currentTime,
       });
     } catch (e) {}
   }
 
-  // Trên một số trình duyệt (đặc biệt Safari/iOS), AudioContext dùng cho
-  // Equalizer có thể bị "suspended" khi khóa màn hình hoặc chuyển app,
-  // khiến nhạc bị câm dù audio element vẫn "playing". Tự resume lại khi
-  // quay lại tab để đảm bảo tiếp tục nghe được xuyên suốt.
   function resumeAudioGraphIfNeeded(){
     if (state.audioCtx && state.audioCtx.state === 'suspended' && state.isPlaying) {
       state.audioCtx.resume().catch(() => {});
@@ -275,66 +432,6 @@
   document.addEventListener('visibilitychange', resumeAudioGraphIfNeeded);
   window.addEventListener('pageshow', resumeAudioGraphIfNeeded);
   window.addEventListener('focus', resumeAudioGraphIfNeeded);
-  const discEl       = $('#discEl');
-  const discArt      = $('#discArt');
-  const eqCanvas     = $('#eqCanvas');
-  const eqCtx        = eqCanvas.getContext('2d');
-
-  const npTitle  = $('#npTitle');
-  const npArtist = $('#npArtist');
-  const curTimeEl = $('#curTime');
-  const durTimeEl = $('#durTime');
-  const seekBar   = $('#seekBar');
-
-  const playPauseBtn = $('#playPauseBtn');
-  const playIcon = $('#playIcon');
-  const pauseIcon = $('#pauseIcon');
-  const prevBtn = $('#prevBtn');
-  const nextBtn = $('#nextBtn');
-  const shuffleToggle = $('#shuffleToggle');
-  const repeatToggle  = $('#repeatToggle');
-
-  const ytEmbedWrap  = $('#ytEmbedWrap');
-  const npTitleVideo  = $('#npTitleVideo');
-  const npArtistVideo = $('#npArtistVideo');
-  const backToAudioBtn = $('#backToAudioBtn');
-  const prevBtnVideo = $('#prevBtnVideo');
-  const nextBtnVideo = $('#nextBtnVideo');
-
-  const mobileBar = $('#mobileBar');
-  const mobileBarTitle = $('#mobileBarTitle');
-
-  /* ---------------- Helpers ---------------- */
-  const pad2 = (n) => String(n).padStart(2, '0');
-  // Tên hiển thị đầy đủ: "01. Elegie" — số thứ tự lấy từ track.id (thứ tự sắp xếp).
-  const displayTitle = (track) => `${pad2(track.id)}. ${track.title}`;
-
-  function fmtTime(sec){
-    if (!isFinite(sec) || sec < 0) return '0:00';
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    return `${m}:${pad2(s)}`;
-  }
-
-  // duration string "3:24" -> seconds (used for the total album runtime estimate)
-  function durationToSeconds(str){
-    const parts = String(str).split(':').map(Number);
-    if (parts.length === 2) return parts[0] * 60 + parts[1];
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    return 0;
-  }
-
-  function escapeHtml(str){
-    return str.replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
-
-  // wraps matches of `query` inside `text` with <mark>
-  function highlight(text, query){
-    if (!query) return escapeHtml(text);
-    const safe = escapeHtml(text);
-    const q = escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return safe.replace(new RegExp(`(${q})`, 'ig'), '<mark>$1</mark>');
-  }
 
   /* ---------------- Load data ---------------- */
   async function loadTracks(){
@@ -345,9 +442,9 @@
       console.error('Không thể tải tracks.json:', err);
       state.tracks = [];
     }
-    state.filtered = state.tracks.slice();
-    renderTracklist();
+    buildTracklist();
     updateHeroMeta();
+    openTrackFromUrl();
   }
 
   function updateHeroMeta(){
@@ -358,32 +455,23 @@
     totalDurationEl.textContent = h > 0 ? `${h} giờ ${m} phút` : `${m} phút`;
   }
 
-  /* ---------------- Render tracklist ---------------- */
-  function renderTracklist(){
-    const query = searchInput.value.trim();
+  /* ---------------- Build tracklist (once) ---------------- */
+  function buildTracklist(){
     tracklistEl.innerHTML = '';
+    tracklistEmptyEl.hidden = state.tracks.length > 0;
 
-    if (state.filtered.length === 0){
-      tracklistEmptyEl.hidden = false;
-    } else {
-      tracklistEmptyEl.hidden = true;
-    }
-
-    state.filtered.forEach((track) => {
-      const realIndex = state.tracks.indexOf(track);
+    state.tracks.forEach((track) => {
       const li = document.createElement('li');
       li.className = 'track';
       li.dataset.id = track.id;
-      if (state.currentIndex === realIndex) li.classList.add('is-active');
-      if (state.openTrackId === track.id) li.classList.add('is-open');
 
       li.innerHTML = `
-        <button class="track-row" type="button" aria-expanded="${state.openTrackId === track.id}">
+        <button class="track-row" type="button" aria-expanded="false">
           <span class="track-row__num">${pad2(track.id)}</span>
           <span class="track-row__num-playing" aria-hidden="true"><i></i><i></i><i></i></span>
           <span class="track-row__info">
-            <span class="track-row__title">${highlight(track.title, query)}</span>
-            <span class="track-row__artist">${highlight(track.artist, query)}</span>
+            <span class="track-row__title">${escapeHtml(track.title)}</span>
+            <span class="track-row__artist">${escapeHtml(track.artist)}</span>
           </span>
           <span class="track-row__duration">${track.duration}</span>
           <svg class="track-row__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -396,6 +484,12 @@
             <button class="format-btn" type="button" data-action="mp4" data-id="${track.id}">
               <span class="format-btn__emoji">🎥</span> Xem MP4 Video
             </button>
+            <button class="format-btn" type="button" data-action="queue" data-id="${track.id}">
+              <span class="format-btn__emoji">➕</span> Thêm vào hàng đợi
+            </button>
+            <button class="format-btn" type="button" data-action="share" data-id="${track.id}">
+              <span class="format-btn__emoji">🔗</span> Chia sẻ link bài hát
+            </button>
           </div>
         </div>
       `;
@@ -403,56 +497,172 @@
       li.querySelector('.track-row').addEventListener('click', () => toggleTrackPopup(track.id));
       li.querySelector('[data-action="mp3"]').addEventListener('click', (e) => {
         e.stopPropagation();
+        closeAllPopups();
         playAudio(track.id);
       });
       li.querySelector('[data-action="mp4"]').addEventListener('click', (e) => {
         e.stopPropagation();
+        closeAllPopups();
         playVideo(track.id);
+      });
+      li.querySelector('[data-action="queue"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllPopups();
+        addToQueue(track);
+      });
+      li.querySelector('[data-action="share"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllPopups();
+        shareTrack(track);
       });
 
       tracklistEl.appendChild(li);
+      state.trackEls.set(track.id, li);
     });
   }
 
-  function toggleTrackPopup(id){
-    state.openTrackId = (state.openTrackId === id) ? null : id;
-    renderTracklist();
-    if (state.openTrackId !== null){
-      // scroll the opened row into a comfortable view
-      requestAnimationFrame(() => {
-        const row = tracklistEl.querySelector(`.track[data-id="${id}"]`);
-        row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      });
-    }
+  /* ---------------- Open / close popup (đẩy lên / biến mất) ---------------- */
+  function openPopup(id){
+    const li = state.trackEls.get(id);
+    if (!li) return;
+    li.classList.add('is-open');
+    li.querySelector('.track-row').setAttribute('aria-expanded', 'true');
+    state.openTrackId = id;
+    requestAnimationFrame(() => {
+      li.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
   }
 
-  /* ---------------- Search / filter ---------------- */
+  function closePopup(id){
+    const li = state.trackEls.get(id);
+    if (!li) return;
+    li.classList.remove('is-open');
+    li.querySelector('.track-row').setAttribute('aria-expanded', 'false');
+    if (state.openTrackId === id) state.openTrackId = null;
+  }
+
+  function closeAllPopups(){
+    if (state.openTrackId !== null) closePopup(state.openTrackId);
+  }
+
+  function toggleTrackPopup(id){
+    const wasOpen = state.openTrackId === id;
+    if (state.openTrackId !== null) closePopup(state.openTrackId);
+    if (!wasOpen) openPopup(id);
+  }
+
+  /* ---------------- Active track highlight ---------------- */
+  function setActiveTrack(idx){
+    if (state.currentIndex !== -1){
+      const prevTrack = state.tracks[state.currentIndex];
+      state.trackEls.get(prevTrack?.id)?.classList.remove('is-active');
+    }
+    state.currentIndex = idx;
+    const track = state.tracks[idx];
+    state.trackEls.get(track?.id)?.classList.add('is-active');
+  }
+
+  /* ---------------- Search / filter (ẩn/hiện, không rebuild DOM) ---------------- */
   searchInput.addEventListener('input', () => {
     const q = searchInput.value.trim().toLowerCase();
-    state.filtered = state.tracks.filter(t =>
-      t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q)
-    );
-    searchCount.textContent = q ? `${state.filtered.length}/${state.tracks.length}` : '';
-    renderTracklist();
+    let visibleCount = 0;
+
+    state.tracks.forEach((track) => {
+      const li = state.trackEls.get(track.id);
+      const match = !q || track.title.toLowerCase().includes(q) || track.artist.toLowerCase().includes(q);
+      li.classList.toggle('is-hidden', !match);
+      if (match) visibleCount++;
+      li.querySelector('.track-row__title').innerHTML = highlight(track.title, q);
+      li.querySelector('.track-row__artist').innerHTML = highlight(track.artist, q);
+    });
+
+    searchCount.textContent = q ? `${visibleCount}/${state.tracks.length}` : '';
+    tracklistEmptyEl.hidden = visibleCount !== 0;
   });
 
   /* ============================================================
-     AUDIO PLAYBACK + WEB AUDIO EQUALIZER
+     AUDIO PLAYBACK + WEB AUDIO EQUALIZER + CROSSFADE
      ============================================================ */
 
+  // Dựng đồ thị Web Audio 1 lần duy nhất:
+  //   sourceA -> gainA ─┐
+  //                      ├─> analyser -> masterGain -> destination
+  //   sourceB -> gainB ─┘
+  // gainA/gainB là 2 "vô lăng" âm lượng riêng cho từng player, dùng để
+  // crossfade giữa 2 bài. masterGain là "vô lăng" chung, dùng cho hẹn giờ ngủ.
   function ensureAudioGraph(){
     if (state.audioCtx) return;
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     state.audioCtx = new AudioCtx();
+
     state.analyser = state.audioCtx.createAnalyser();
     state.analyser.fftSize = 256;
-    state.sourceNode = state.audioCtx.createMediaElementSource(audioEl);
-    state.sourceNode.connect(state.analyser);
-    state.analyser.connect(state.audioCtx.destination);
+
+    state.masterGain = state.audioCtx.createGain();
+    state.masterGain.gain.value = 1;
+    state.analyser.connect(state.masterGain);
+    state.masterGain.connect(state.audioCtx.destination);
+
+    state.players.forEach((p) => {
+      p.sourceNode = state.audioCtx.createMediaElementSource(p.el);
+      p.gain = state.audioCtx.createGain();
+      p.gain.gain.value = 0;
+      p.sourceNode.connect(p.gain);
+      p.gain.connect(state.analyser);
+    });
   }
 
   function findIndexById(id){
     return state.tracks.findIndex(t => t.id === id);
+  }
+
+  // Chuyển sang phát 1 track mới với hiệu ứng crossfade: bài đang phát (nếu
+  // có) fade-out 1.5s trong khi bài mới nạp và fade-in song song 1.5s —
+  // 2 audio element chồng lẫn âm thanh trong lúc chuyển tiếp, không bị ngắt
+  // quãng đột ngột.
+  function crossfadeToTrack(track){
+    ensureAudioGraph();
+    const now = state.audioCtx.currentTime;
+    const fromIdx = state.activePlayer;
+    const toIdx = 1 - fromIdx;
+    const from = state.players[fromIdx];
+    const to = state.players[toIdx];
+
+    const fromWasPlaying = !from.el.paused && !from.el.ended;
+
+    if (fromWasPlaying){
+      // Fade-out bài cũ trong CROSSFADE_SEC giây, rồi mới pause hẳn.
+      from.gain.gain.cancelScheduledValues(now);
+      from.gain.gain.setValueAtTime(from.gain.gain.value, now);
+      from.gain.gain.linearRampToValueAtTime(0, now + CROSSFADE_SEC);
+
+      const elToStop = from.el;
+      const genAtSchedule = from.gen; // "chữ ký" thời điểm lên lịch — để tránh
+      setTimeout(() => {              // pause nhầm nếu player này đã được tái
+        if (from.gen === genAtSchedule) elToStop.pause(); // sử dụng cho bài khác trong lúc chờ.
+      }, CROSSFADE_SEC * 1000 + 60);
+    } else {
+      from.gain.gain.cancelScheduledValues(now);
+      from.gain.gain.setValueAtTime(0, now);
+      from.el.pause();
+    }
+
+    // Nạp bài mới vào player còn lại và fade-in từ 0 -> 1.
+    to.gen = (to.gen || 0) + 1;
+    to.el.src = encodeURI(pickAudioUrl(track));
+    to.el.currentTime = 0;
+    if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
+
+    to.gain.gain.cancelScheduledValues(now);
+    to.gain.gain.setValueAtTime(0, now);
+    to.gain.gain.linearRampToValueAtTime(1, now + CROSSFADE_SEC);
+
+    state.activePlayer = toIdx;
+    state.triedFallback = false;
+
+    to.el.play().catch(() => {
+      // Autoplay might be blocked, or the placeholder audio file doesn't exist yet — that's expected before the user adds real files.
+    });
   }
 
   function playAudio(id){
@@ -460,8 +670,8 @@
     if (idx === -1) return;
 
     state.mode = 'audio';
-    state.currentIndex = idx;
-    state.openTrackId = null;
+    closeAllPopups();
+    setActiveTrack(idx);
     const track = state.tracks[idx];
 
     playerEmpty.hidden = true;
@@ -475,86 +685,93 @@
       <svg viewBox="0 0 400 400" class="placeholder-art" aria-hidden="true"><rect width="400" height="400" fill="#0c0d10"/><text x="200" y="215" text-anchor="middle" font-family="Cinzel" font-size="40" fill="#C5CBCE" letter-spacing="4">HVL</text></svg>`;
     updateMediaSessionMetadata(track);
 
-    // Ưu tiên FLAC nếu thiết bị/trình duyệt hỗ trợ, không thì dùng MP3.
-    state.triedFallback = false;
-    audioEl.src = encodeURI(pickAudioUrl(track));
-    ensureAudioGraph();
-    if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
+    crossfadeToTrack(track);
 
-    audioEl.play().catch(() => {
-      // Autoplay might be blocked, or the placeholder audio file doesn't exist yet — that's expected before the user adds real files.
-    });
-
-    renderTracklist();
     updateMiniStatus();
     scrollPlayerIntoViewMobile();
   }
 
-  audioEl.addEventListener('error', () => {
-    // Nếu nguồn đang phát bị lỗi (vd trình duyệt báo hỗ trợ FLAC nhưng thực
-    // tế không phát nổi, hoặc thiếu file), thử đổi sang định dạng còn lại
-    // một lần duy nhất trước khi bỏ cuộc.
-    if (state.triedFallback || state.mode !== 'audio' || state.currentIndex === -1) return;
-    const track = state.tracks[state.currentIndex];
-    if (!track) return;
-    const current = audioEl.getAttribute('src') || '';
-    const fallbackUrl = current.includes(encodeURI(track.flac_url).split('/').pop())
-      ? track.mp3_url
-      : track.flac_url;
-    if (!fallbackUrl) return;
-    state.triedFallback = true;
-    audioEl.src = encodeURI(fallbackUrl);
-    audioEl.play().catch(() => {});
-  });
+  // Gắn listener cho CẢ 2 audio element — nhưng mỗi handler tự kiểm tra
+  // "mình có đang là player tiền cảnh không" trước khi cập nhật UI, để
+  // tránh sự kiện từ player nền (đang fade-out/vừa pause) ghi đè trạng thái
+  // của bài đang thực sự phát.
+  state.players.forEach((player, idx) => {
+    const el = player.el;
 
-  audioEl.addEventListener('play', () => {
-    state.isPlaying = true;
-    discEl.classList.add('is-spinning');
-    playIcon.hidden = true; pauseIcon.hidden = false;
-    startEqualizer();
-    updateMiniStatus();
-    if (hasMediaSession) navigator.mediaSession.playbackState = 'playing';
-  });
-  audioEl.addEventListener('pause', () => {
-    state.isPlaying = false;
-    discEl.classList.remove('is-spinning');
-    playIcon.hidden = false; pauseIcon.hidden = true;
-    updateMiniStatus();
-    if (hasMediaSession) navigator.mediaSession.playbackState = 'paused';
-  });
-  audioEl.addEventListener('loadedmetadata', () => {
-    durTimeEl.textContent = fmtTime(audioEl.duration);
-    seekBar.max = audioEl.duration || 0;
-    updateMediaSessionPositionState();
-  });
-  audioEl.addEventListener('timeupdate', () => {
-    curTimeEl.textContent = fmtTime(audioEl.currentTime);
-    seekBar.value = audioEl.currentTime;
-    const pct = audioEl.duration ? (audioEl.currentTime / audioEl.duration) * 100 : 0;
-    seekBar.style.setProperty('--pct', pct + '%');
-    updateMediaSessionPositionState();
-  });
-  audioEl.addEventListener('ended', () => {
-    if (state.sleepTimer.mode === 'end'){
-      // Hẹn giờ "hết bài đang phát" — dừng lại, không tự chuyển bài tiếp.
-      clearSleepTimer();
-      return;
-    }
-    if (state.isRepeat){
-      audioEl.currentTime = 0;
-      audioEl.play();
-    } else {
-      goToNext();
-    }
+    el.addEventListener('error', () => {
+      if (idx !== state.activePlayer) return;
+      if (state.triedFallback || state.mode !== 'audio' || state.currentIndex === -1) return;
+      const track = state.tracks[state.currentIndex];
+      if (!track) return;
+      const current = el.getAttribute('src') || '';
+      const fallbackUrl = (track.flac_url && current.includes(encodeURI(track.flac_url).split('/').pop()))
+        ? track.mp3_url
+        : track.flac_url;
+      if (!fallbackUrl) return;
+      state.triedFallback = true;
+      el.src = encodeURI(fallbackUrl);
+      el.play().catch(() => {});
+    });
+
+    el.addEventListener('play', () => {
+      if (idx !== state.activePlayer) return;
+      state.isPlaying = true;
+      discEl.classList.add('is-spinning');
+      playIcon.hidden = true; pauseIcon.hidden = false;
+      startEqualizer();
+      updateMiniStatus();
+      if (hasMediaSession) navigator.mediaSession.playbackState = 'playing';
+    });
+
+    el.addEventListener('pause', () => {
+      if (idx !== state.activePlayer) return;
+      state.isPlaying = false;
+      discEl.classList.remove('is-spinning');
+      playIcon.hidden = false; pauseIcon.hidden = true;
+      updateMiniStatus();
+      if (hasMediaSession) navigator.mediaSession.playbackState = 'paused';
+    });
+
+    el.addEventListener('loadedmetadata', () => {
+      if (idx !== state.activePlayer) return;
+      durTimeEl.textContent = fmtTime(el.duration);
+      seekBar.max = el.duration || 0;
+      updateMediaSessionPositionState();
+    });
+
+    el.addEventListener('timeupdate', () => {
+      if (idx !== state.activePlayer) return;
+      curTimeEl.textContent = fmtTime(el.currentTime);
+      seekBar.value = el.currentTime;
+      const pct = el.duration ? (el.currentTime / el.duration) * 100 : 0;
+      seekBar.style.setProperty('--pct', pct + '%');
+      updateMediaSessionPositionState();
+    });
+
+    el.addEventListener('ended', () => {
+      if (idx !== state.activePlayer) return;
+      if (state.sleepTimer.mode === 'end'){
+        // Hẹn giờ "hết bài đang phát" — dừng lại, không tự chuyển bài tiếp.
+        clearSleepTimer();
+        return;
+      }
+      if (state.isRepeat){
+        el.currentTime = 0;
+        el.play();
+      } else {
+        goToNext();
+      }
+    });
   });
 
   seekBar.addEventListener('input', () => {
-    audioEl.currentTime = Number(seekBar.value);
+    activeEl().currentTime = Number(seekBar.value);
   });
 
   playPauseBtn.addEventListener('click', () => {
     if (state.mode !== 'audio') return;
-    if (audioEl.paused) audioEl.play(); else audioEl.pause();
+    const el = activeEl();
+    if (el.paused) el.play(); else el.pause();
   });
 
   shuffleToggle.addEventListener('click', () => toggleShuffle(shuffleToggle));
@@ -604,6 +821,18 @@
 
   function goToNext(){
     if (!state.tracks.length) return;
+
+    // Ưu tiên hàng đợi "phát tiếp theo" nếu có.
+    if (state.queue.length > 0){
+      const queuedId = state.queue.shift();
+      updateQueueUI();
+      const queuedTrack = state.tracks.find((t) => t.id === queuedId);
+      if (queuedTrack){
+        if (state.mode === 'video') playVideo(queuedTrack.id); else playAudio(queuedTrack.id);
+        return;
+      }
+    }
+
     const idx = nextIndex();
     const track = state.tracks[idx];
     if (state.mode === 'video') playVideo(track.id); else playAudio(track.id);
@@ -671,11 +900,11 @@
     if (idx === -1) return;
 
     state.mode = 'video';
-    state.currentIndex = idx;
-    state.openTrackId = null;
+    closeAllPopups();
+    setActiveTrack(idx);
     const track = state.tracks[idx];
 
-    audioEl.pause();
+    state.players.forEach((p) => p.el.pause());
     playerEmpty.hidden = true;
     audioMode.hidden = true;
     videoMode.hidden = false;
@@ -690,7 +919,6 @@
            Chưa gắn Youtube ID cho bài này.<br>Điền <code>youtube_id</code> trong tracks.json để xem MV tại đây.
          </div>`;
 
-    renderTracklist();
     updateMiniStatus();
     scrollPlayerIntoViewMobile();
   }
